@@ -2,7 +2,7 @@ import os
 import base64
 import json
 import logging
-from typing import Literal
+from typing import Literal, Dict, Any
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
@@ -20,6 +20,9 @@ class CertificateExtraction(BaseModel):
     last_class_attended: str = Field(
         ..., description="The last class, standard, or grade the student was in (e.g., '10th Standard', 'Class XII', 'Grade 12')."
     )
+    all_extracted_data: Dict[str, Any] = Field(
+        ..., description="All extracted data from the certificate in key-value pairs."
+    )
 
 class ExtractionResponse(BaseModel):
     """The complete response structure."""
@@ -31,7 +34,7 @@ app = FastAPI(
     title="School Leaving Certificate Data Extractor API",
     version="1.0.0",
     description=(
-        "Extracts School Name and Last Class/Standard Attended from an uploaded School Leaving Certificate image "
+        "Extracts School Name, Last Class/Standard Attended, and all other data from an uploaded School Leaving Certificate image "
         "using Groq Llama 4 Scout in JSON Mode."
     ),
 )
@@ -46,14 +49,27 @@ SUPPORTED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 
 SYSTEM_PROMPT = (
     "You are an expert Optical Character Recognition (OCR) and document parsing agent. "
-    "Your sole function is to accurately read the provided image of a School Leaving Certificate and extract specific "
-    "required data fields. You MUST return the output as a valid JSON object strictly conforming to the provided "
+    "Your sole function is to accurately read the provided image of a School Leaving Certificate and extract all "
+    "relevant data fields. You MUST return the output as a valid JSON object strictly conforming to the provided "
     "Pydantic schema. Do not include any introductory text, apologies, or explanations outside the JSON block."
 )
 
 USER_PROMPT = (
-    "Analyze the uploaded School Leaving Certificate image. Identify the full, official name of the school and the "
-    "last class or standard the student was present in. Return the data using the keys school_name and last_class_attended."
+    "Analyze the uploaded School Leaving Certificate image. Extract ALL information present in the certificate. "
+    "You must provide:\n"
+    "1. school_name: The full, official name of the school\n"
+    "2. last_class_attended: The last class or standard the student was present in\n"
+    "3. all_extracted_data: A comprehensive dictionary containing ALL data from the certificate including but not limited to:\n"
+    "   - Student name, father's name, mother's name\n"
+    "   - Date of birth\n"
+    "   - Admission date and leaving date\n"
+    "   - Registration/admission number\n"
+    "   - Nationality, religion, caste/category\n"
+    "   - Previous school details\n"
+    "   - Reason for leaving\n"
+    "   - Certificate issue date\n"
+    "   - Any other information visible on the certificate\n"
+    "Format all dates consistently. Use descriptive keys in all_extracted_data (e.g., 'student_name', 'date_of_birth', etc.)."
 )
 
 
@@ -122,6 +138,10 @@ async def extract_certificate_data(file: UploadFile = File(...)):
 @app.get("/health")
 def health() -> JSONResponse:
     return JSONResponse({"status": "ok"})
+
+@app.get("/")
+def root() -> JSONResponse:
+    return JSONResponse({"message": "School Leaving Certificate Data Extractor API is running."})
 
 
 if __name__ == "__main__":
