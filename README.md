@@ -17,4 +17,4 @@ Run locally:
 
 Endpoint:
 - POST /api/v1/extract_certificate_data (multipart/form-data, field: file)
-- GET /health
+- GET /health!
